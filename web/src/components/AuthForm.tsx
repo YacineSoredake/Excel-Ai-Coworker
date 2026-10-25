@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-export default function AuthForm() {
+export default function AuthForm({ onBack }: { onBack?: () => void }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,9 +28,12 @@ export default function AuthForm() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Excel Copilot</h1>
-      <p className="mt-1 text-sm text-zinc-500">Upload your Excel. Understand your data.</p>
+    <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,#eef0ff_0%,#fafafa_42%,#fafafa_100%)] px-6 py-10">
+      <div className="w-full max-w-sm rounded-2xl border border-zinc-200/80 bg-white/90 p-7 shadow-xl shadow-zinc-900/5 backdrop-blur">
+      {onBack && <button type="button" onClick={onBack} className="mb-5 text-sm text-zinc-500 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">← Back to overview</button>}
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Excel Copilot</p>
+      <h1 className="mt-3 text-2xl font-semibold tracking-tight">Understand your spreadsheet.</h1>
+      <p className="mt-2 text-sm leading-6 text-zinc-500">Upload your Excel. Get the important numbers, visuals, and next questions.</p>
 
       <form onSubmit={submit} className="mt-8 space-y-4">
         <label className="block text-sm font-medium">
@@ -76,6 +79,7 @@ export default function AuthForm() {
       >
         {mode === "signin" ? "No account? Create one" : "Already have an account? Sign in"}
       </button>
+      </div>
     </main>
   );
 }

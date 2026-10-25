@@ -1,4 +1,4 @@
-"""Pipeline: download -> checksum -> validate (phase 1) -> understand + profile (phase 2) -> verified facts (phase 3) -> chart specs (phase 4) -> context + insights (phase 5).
+"""Pipeline: download -> checksum -> validate (phase 1) -> understand + profile (phase 2) -> verified facts (phase 3) -> chart specs (phase 4) -> context + insights (phase 5) -> guide (phase 6).
 
 Later phases plug in after profiling (analytics, charts, insights, ...).
 """
@@ -13,9 +13,10 @@ from .engine.analyze import analyze_workbook
 from .engine.context import Limits
 from .analytics.run import compute_analytics
 from .charts.run import build_charts
+from .guide.build import build_guide
 from .context.infer import build_context
 from .insights.build import build_insights
-from .persist import save_analytics_status, save_charts, save_context_and_insights, save_facts, save_profile
+from .persist import save_analytics_status, save_charts, save_context_and_insights, save_facts, save_guide, save_profile
 from .qa.schema import schema_from_output
 from .validate import Rejected, inspect_xlsx
 
@@ -34,6 +35,16 @@ def _ai_enabled(client: Client, user_id: str) -> bool:
         return bool(rows and rows[0].get("ai_enabled"))
     except Exception:
         return False  # when in doubt, no AI
+
+
+def _audit(client: Client, user_id: str, workbook_id: str, action: str, metadata: dict | None = None) -> None:
+    """Write non-sensitive operational events when the hardening migration is installed."""
+    try:
+        client.table("audit_events").insert(
+            {"user_id": user_id, "workbook_id": workbook_id, "action": action, "metadata": metadata or {}}
+        ).execute()
+    except Exception as e:
+        log.warning("audit_error workbook=%s action=%s type=%s", workbook_id, action, type(e).__name__)
 
 
 def run_job(client: Client, settings: Settings, job: dict) -> None:
@@ -68,6 +79,7 @@ def run_job(client: Client, settings: Settings, job: dict) -> None:
             result = compute_analytics(out, settings.analysis_timeout)
             save_facts(client, job["owner_id"], wb_id, out, result)
             stats = result.stats
+            charts, context, schema = [], None, None
             # Phase 4: chart specs from the verified facts. Isolated again: facts stay usable if this fails.
             try:
                 charts, cstats = build_charts(out, result)
@@ -95,6 +107,15 @@ def run_job(client: Client, settings: Settings, job: dict) -> None:
             except Exception as e:
                 log.error("insights_error job=%s type=%s", job_id, type(e).__name__)
                 stats = {**stats, "insights_error": "internal_error"}
+            # Phase 6: the guided path. Deterministic and isolated: the rest is unaffected if it fails.
+            if context is not None:
+                try:
+                    guide = build_guide(out, result.facts, charts, schema, context)
+                    save_guide(client, wb_id, guide)
+                    stats = {**stats, "guide_steps": len(guide["steps"])}
+                except Exception as e:
+                    log.error("guide_error job=%s type=%s", job_id, type(e).__name__)
+                    stats = {**stats, "guide_error": "internal_error"}
         except Rejected as r:
             stats = {"error": r.code}
         except Exception as e:
@@ -111,6 +132,7 @@ def run_job(client: Client, settings: Settings, job: dict) -> None:
         client.table("analysis_jobs").update(
             {"status": "done", "finished_at": _now(), "error": None}
         ).eq("id", job_id).execute()
+        _audit(client, job["owner_id"], wb_id, "analysis_completed", {"pipeline_version": "phase8"})
         log.info("job_done job=%s", job_id)
 
     except Rejected as r:
@@ -120,6 +142,7 @@ def run_job(client: Client, settings: Settings, job: dict) -> None:
         client.table("analysis_jobs").update(
             {"status": "failed", "finished_at": _now(), "error": r.code}
         ).eq("id", job_id).execute()
+        _audit(client, job["owner_id"], wb_id, "analysis_failed", {"error": r.code})
         log.info("job_rejected job=%s code=%s", job_id, r.code)
 
     except Exception as e:  # unexpected: retry up to MAX_ATTEMPTS
@@ -131,6 +154,7 @@ def run_job(client: Client, settings: Settings, job: dict) -> None:
             client.table("analysis_jobs").update(
                 {"status": "failed", "finished_at": _now(), "error": "internal_error"}
             ).eq("id", job_id).execute()
+            _audit(client, job["owner_id"], wb_id, "analysis_failed", {"error": "internal_error"})
         else:
             client.table("analysis_jobs").update(
                 {"status": "queued", "error": "internal_error"}

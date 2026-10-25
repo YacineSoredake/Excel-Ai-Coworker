@@ -276,10 +276,10 @@ its products (human reviewers may read them); a paid tier or a provider with a n
 
 ### Tests
 
-- `cd worker && pip install -r requirements-dev.txt && pytest` — **202 tests**, including the claim validator against typical LLM failures,
+- `cd worker && pip install -r requirements-dev.txt && pytest` — **264 tests**, including the claim validator against typical LLM failures,
   provider clients on a mock transport (retries, 429, malformed output, key never in a URL), plan validation, execution + independent verification,
   hostile plans, and end-to-end flows on an in-memory database (consent, queue, ownership, cache).
-- `cd web && npm test` — **57 tests**, including the new screens rendered with real worker output.
+- `cd web && npm test` — **68 tests**, including the new screens rendered with real worker output.
 - **Not tested here:** live calls to a provider (there is no key in the build environment). Run `python scripts/eval_ai.py` with your key; it reports
   how often the AI's plans validate, how often its wording is accepted, and checks that final answers always equal the built-in result.
 
@@ -299,6 +299,90 @@ its products (human reviewers may read them); a paid tier or a provider with a n
 - [ ] `python scripts/eval_ai.py` reports 100% "final answer correct"
 - [ ] Both test suites pass
 
-## Next: Phase 6 — Guided analysis
-A step-by-step investigation path (what happened → where → what's unusual → what to check), with contextual next actions,
-built on the same plans and verified results.
+## Phase 6 — Guided analysis (report §7, §8, §6.3)
+
+**Guide Me** walks a user through what matters in the workbook, in the order the report describes: the big picture, where it comes from,
+how it changed, what looks unusual, then what to look at next. Any step can be skipped, and every button runs inside the step.
+It is **deterministic**: built from verified facts and the charts already computed, with no AI. (Phase 5's evaluation showed AI wording added
+nothing, so there is none here.)
+
+```
+worker/app/guide/build.py   the path: overview -> sources -> change -> unusual -> target -> quality -> next (only steps the data supports)
+worker/app/qa/highlights.py "What should I pay attention to?" / "Find suspicious data", answered from the stored insights
+supabase/migrations/0006_guide.sql   workbook_profiles.guide (+ re-runs profiled files)
+web/src/components/GuidePanel.tsx    stepper, narrative, caveats, evidence charts, buttons that run in place, results
+```
+
+### Upgrade from Phase 5
+
+1. Run `supabase/migrations/0006_guide.sql`.
+2. `docker compose up -d --build`, then redeploy the web app.
+3. Open a workbook: the Overview now has a **Walk me through it** button and there is a **Guide** tab.
+
+### How the tour works
+
+- **The path adapts.** A table with no dates gets no "over time" or "unusual month" steps; no target column means no target step; a data-quality step
+  appears only when there are real issues. Nothing is invented to fill a step.
+- **Every button is a ready, validated plan** ("Explore Online", "What contributed to 2026-04 → 2026-05?", "Inspect transactions in 2026-05"), run by the same
+  Ask engine, verified a second way, and shown inside the step. Tests run every button of every guide.
+- **Honest wording (§6.3).** The unusual step ends "These are patterns to check, not conclusions." Narratives are built from fact headlines, so every number
+  and period is traceable (tested with the claim validator), and none uses causal wording. Each step shows the caveats of the facts it is built on
+  (for example "one unusually extreme value", so a 99% share is not presented without context).
+- **"What should I pay attention to?" and "Find suspicious data"** (EN/FR) now work in Ask. They list only what the insights already verified, say "patterns, not
+  explanations", and say plainly when nothing stands out. A next question that several findings share is offered once, not repeated.
+
+### Tests
+
+- `cd worker && pytest` — **264 tests** (new: path order and adaptation, every button runs and verifies, period filters return the right rows, traceable non-causal narratives,
+  attention questions, pipeline isolation).
+- `cd web && npm test` — **68 tests** (new: the real tour rendered, back/next, skipping to any step, buttons running in place with progress then result, follow-ups inside a step,
+  per-step results, rate-limit message, highlights).
+
+### Known limits
+
+- The tour covers the main table of the workbook (the largest with measures). Other tables are reachable in Explore and Ask.
+- The path order is fixed (it follows the report's example); which opportunities fill the "unusual" step is chosen by score.
+- Usage measurement (the report's "% of users who click a guided recommendation") is not collected yet; it belongs with monitoring in Phase 8.
+
+### Done when (Phase 6)
+
+- [ ] **Overview** shows "Walk me through it"; the **Guide** tab opens on "Let's understand the big picture" with the KPI cards
+- [ ] Steps: big picture → where it comes from (Online 49%) → how it changed (+58%, September +71%) → something unusual (largest change, with "not conclusions") → on track (53% of target) → where to go next
+- [ ] You can jump to any step from the list; Back and Next work; Finish returns to the Overview
+- [ ] "Inspect transactions in 2026-05" runs inside the step and shows rows from May with Excel row numbers
+- [ ] On the messy file: a data-quality step, and a caveat about the extreme value under "where it comes from"
+- [ ] In Ask: "What should I pay attention to?" and "Find suspicious data" give short lists with next steps, no repeated suggestions
+- [ ] Both test suites pass
+
+## Next: Phase 7 — Export
+A PDF report of the dashboard, insights and the guided findings, with the same caveats and definitions, plus optional sharing.
+
+### Phase 7 status
+
+The workbook header now provides **Download PDF**. It downloads a compact, visual PDF
+directly in the browser containing:
+
+- workbook context, assumptions, and row/table coverage;
+- KPI cards;
+- up to three important charts rendered as PDF visuals;
+- the three highest-priority grounded insights; and
+- only the most relevant caveats and next steps.
+
+No workbook rows or new calculations are sent to a server. The PDF is assembled from the
+already-loaded, access-controlled analysis output. The browser downloads it as a PDF file.
+Sharing remains intentionally deferred because private workbook authorization
+must not be bypassed by public report links.
+
+## Phase 8 — Hardening
+
+Phase 8 adds operational safeguards without exposing workbook contents:
+
+- upload quotas: 25 workbooks per user in 30 days and 10 uploads per day;
+- bounded workbook filenames with control characters rejected;
+- a user-visible audit trail for upload registration and deletion;
+- service-role audit retention cleanup (`purge_old_audit_events`, default 180 days);
+- worker health metrics for uptime, completed jobs/questions, and errors;
+- explicit UI messages for quota/rate-limit failures and delete failures.
+
+Run `supabase/migrations/0007_hardening.sql` after the Phase 7 migrations. Schedule
+`purge_old_audit_events()` from a trusted maintenance job; it is not callable by browser users.

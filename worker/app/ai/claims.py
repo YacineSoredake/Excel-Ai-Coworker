@@ -43,7 +43,7 @@ _STARTERS = {"the", "this", "these", "those", "it", "its", "overall", "in", "on"
              "recent", "currently", "mostly", "mainly", "largely", "slightly", "sharply", "steadily", "month", "months", "week", "weeks",
              "year", "years", "day", "days", "quarter", "figures", "data", "results", "increase", "decrease", "growth", "decline", "peak",
              "trend", "change", "changes", "top", "bottom", "highest", "lowest", "biggest", "largest", "smallest", "median", "typical",
-             "usually", "generally", "typically", "per", "than", "that", "not", "has", "have", "had", "be", "been", "being", "whose", "whom"}
+             "usually", "generally", "typically", "per", "than", "that", "not", "has", "have", "had", "be", "been", "being", "whose", "whom", "let", "what"}
 _COMMON = {"excel", "dzd", "usd", "eur", "gbp", "january", "february", "march", "april", "may", "june", "july", "august",
            "september", "october", "november", "december", "monday", "tuesday", "wednesday", "thursday", "friday",
            "saturday", "sunday", "i", "this", "the", "a", "an", "it", "these", "those", "there", "overall", "however"}
@@ -223,7 +223,9 @@ def check_text(text: str, ev: Evidence, *, kind: str = "statement", known_good: 
         start = t[: m.start()].rstrip()
         initial = not start or start[-1] in ".!?:\n"
         nw = strip_accents(w).casefold().strip("'’-")
-        if nw in _COMMON or re.fullmatch(r"q[1-4]", nw) or nw in words or (initial and nw in _STARTERS):
+        base = re.split(r"['’]", nw)[0]  # "That's" -> "that", "Alger's" -> "alger": judged by the word itself
+        if (nw in _COMMON or base in _COMMON or re.fullmatch(r"q[1-4]", nw) or nw in words or base in words
+                or (initial and (nw in _STARTERS or base in _STARTERS))):
             continue
         issues.append(f"unknown_name:{w}")
     return Check(not issues, issues)

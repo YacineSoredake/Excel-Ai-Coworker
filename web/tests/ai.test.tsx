@@ -71,6 +71,8 @@ describe("Insights", () => {
     const withPlan = AI.insights.find((i: any) => i.next_plan);
     fireEvent.click(screen.getAllByText(withPlan.next_check)[0]);
     expect(onAsk).toHaveBeenCalledWith(withPlan.next_check, withPlan.next_plan);
+    const texts = AI.insights.map((i: any) => i.next_check).filter(Boolean);
+    for (const t of new Set(texts)) expect(screen.getAllByText(t as string)).toHaveLength(1);  // a repeated suggestion appears once
   });
 });
 

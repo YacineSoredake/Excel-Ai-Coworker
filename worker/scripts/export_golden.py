@@ -17,6 +17,8 @@ from app.analytics.run import compute_analytics  # noqa: E402
 from app.charts.run import build_charts  # noqa: E402
 from app.context.infer import build_context  # noqa: E402
 from app.engine.analyze import analyze_workbook  # noqa: E402
+from app.guide.build import build_guide  # noqa: E402
+from app.qa.highlights import highlights_answer  # noqa: E402
 from app.insights.build import build_insights  # noqa: E402
 from app.qa.run import QAContext, answer_question  # noqa: E402
 from app.qa.schema import schema_from_output  # noqa: E402
@@ -276,10 +278,16 @@ def main():
                  "Why did sales increase in September?", "show the largest orders", "what is the weather like?", "Which month saw the biggest drop?"]
     answers = [{"id": f"q{i}", "workbook_id": "w1", "text": q, "status": "answered", "created_at": "2026-10-10T10:00:00Z",
                 "answer": answer_question(q, qa)} for i, q in enumerate(questions)]
+    rows = [{"category": i.category, "priority": i.priority, "statement": i.statement, "next_check": i.next_check, "next_plan": i.next_plan} for i in ins]
+    for k, q in enumerate(["What should I pay attention to?", "Find suspicious data"]):
+        answers.append({"id": f"qh{k}", "workbook_id": "w1", "text": q, "status": "answered", "created_at": "2026-10-10T10:00:00Z",
+                        "answer": highlights_answer(q, rows)})
+    cs2, _ = build_charts(out, res)
+    guide = build_guide(out, res.facts, cs2, schema, ctx)
     answers.append({"id": "qc", "workbook_id": "w1", "text": "What is the total", "status": "answered", "created_at": "2026-10-10T10:00:00Z",
                     "answer": {"status": "clarify", "text": "Which number do you mean?", "options": ["total_dzd", "quantity"], "plan": None, "result": None,
                                "chart": None, "caveats": [], "notes": [], "sample_rows": [], "followups": [], "source": {"plan": "rules", "text": "template"}}})
-    json.dump(jsonable({"context": ctx, "insights": [{"id": i.key, "table_id": None, "key": i.key, "category": i.category, "priority": i.priority,
+    json.dump(jsonable({"context": ctx, "guide": guide, "insights": [{"id": i.key, "table_id": None, "key": i.key, "category": i.category, "priority": i.priority,
                                                       "statement": i.statement, "interpretation": i.interpretation, "next_check": i.next_check,
                                                       "next_plan": i.next_plan, "caveats": i.caveats, "fact_keys": i.fact_keys, "source": i.source} for i in ins],
                         "answers": answers}), open(os.path.join(OUT, "ai.json"), "w"), separators=(",", ":"))

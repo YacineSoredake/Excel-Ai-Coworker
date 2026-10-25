@@ -47,9 +47,9 @@ export default function ChartCard({ chart, data, filtered, onSelect, height = 26
   const empty = (data.groups && data.groups.length === 0) || (data.x && data.x.length === 0) || (data.counts && data.counts.length === 0);
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4" aria-label={chart.title}>
+    <section className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm" aria-label={chart.title}>
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-sm font-semibold leading-snug">{chart.title}</h3>
+        <div><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{chart.role === "trend" ? "Trend" : chart.role === "comparison" ? "Comparison" : "Analysis"}</p><h3 className="mt-1 text-sm font-semibold leading-snug text-zinc-950">{chart.title}</h3></div>
         {alts.length > 0 && (
           <div role="group" aria-label="Chart type" className="flex shrink-0 overflow-hidden rounded-md border border-zinc-200 text-xs">
             {[chart.kind, ...alts].map((k) => (

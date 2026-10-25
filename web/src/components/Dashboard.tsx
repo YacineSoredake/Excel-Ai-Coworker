@@ -31,10 +31,10 @@ const EXPLORE_GROUPS: { title: string; match: (c: ChartRow, subtype: string | nu
   { title: "Against targets", match: (c) => c.role === "target" },
 ];
 
-export default function Dashboard({ view, tables, columns, charts, facts, findings, onOpenDetails, context = null, insights = [], onAsk = () => {} }: {
+export default function Dashboard({ view, tables, columns, charts, facts, findings, onOpenDetails, context = null, insights = [], onAsk = () => {}, onGuide }: {
   view: "overview" | "explore"; tables: DataTableRow[]; columns: ColLite[]; charts: ChartRow[]; facts: FactLite[];
   findings: Record<string, number>; onOpenDetails: () => void;
-  context?: ContextRow | null; insights?: InsightRow[]; onAsk?: (text: string, plan: PlanLike | null) => void;
+  context?: ContextRow | null; insights?: InsightRow[]; onAsk?: (text: string, plan: PlanLike | null) => void; onGuide?: () => void;
 }) {
   const withCharts = useMemo(() => tables.filter((t) => charts.some((c) => c.table_id === t.id)), [tables, charts]);
   const [tableId, setTableId] = useState<string | null>(null);
@@ -112,7 +112,7 @@ export default function Dashboard({ view, tables, columns, charts, facts, findin
   const issues = (findings.high ?? 0) + (findings.medium ?? 0) + (findings.low ?? 0);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {withCharts.length > 1 && (
         <label className="block text-xs text-zinc-500">Table
           <select value={table.id} onChange={(e) => { setTableId(e.target.value); setDrill(null); }}
@@ -127,13 +127,22 @@ export default function Dashboard({ view, tables, columns, charts, facts, findin
 
       {view === "overview" ? (
         <>
+          {onGuide && (
+            <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 px-5 py-5 text-white shadow-lg shadow-zinc-950/10">
+              <div className="absolute -right-12 -top-16 h-40 w-40 rounded-full bg-accent/30 blur-2xl" aria-hidden />
+              <div className="relative flex flex-wrap items-center justify-between gap-4">
+                <div><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-indigo-200">Your guided briefing</p><p className="mt-1 text-base font-medium">Start with the signals that deserve your attention.</p><p className="mt-1 text-sm text-zinc-400">A short, evidence-based tour through this workbook.</p></div>
+                <button type="button" onClick={onGuide} className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950">Walk me through it <span aria-hidden>→</span></button>
+              </div>
+            </div>
+          )}
           {context && <AboutCard context={context} onAsk={(t) => onAsk(t, context.suggested_questions.find((q) => q.text === t)?.plan ?? null)} />}
           {kpis.length > 0 && (
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {kpis.map((c) => <KpiCard key={c.key} chart={c} data={dataOf.get(c.key)} filtered={active} />)}
             </div>
           )}
-          {primary && card(primary, 320)}
+          {primary && <section aria-label="Primary trend" className="space-y-2"><div className="flex items-end justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Performance over time</p><h2 className="mt-1 text-lg font-semibold tracking-tight text-zinc-950">The main story</h2></div><span className="hidden text-xs text-zinc-400 sm:inline">Click a point to inspect the rows behind it</span></div>{card(primary, 340)}</section>}
           {insights.length > 0 && <InsightsPanel insights={insights.filter((i) => !i.table_id || i.table_id === table.id)} onAsk={onAsk} onDetails={onOpenDetails} />}
           {insights.length === 0 && worth.length > 0 && (
             <section aria-labelledby="worth" className="rounded-lg border border-zinc-200 bg-white p-4">
@@ -142,9 +151,9 @@ export default function Dashboard({ view, tables, columns, charts, facts, findin
               <button type="button" onClick={onOpenDetails} className="mt-2 text-sm text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">See how these were computed</button>
             </section>
           )}
-          {secondary.length > 0 && <div className="grid gap-4 md:grid-cols-2">{secondary.map((c) => card(c))}</div>}
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm">
-            <span>{issues === 0 ? "No data-quality issues found." : `${issues} potential data-quality issue${issues === 1 ? "" : "s"}${findings.high ? ` (${findings.high} high)` : ""}.`}</span>
+          {secondary.length > 0 && <section className="space-y-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Where it comes from</p><h2 className="mt-1 text-lg font-semibold tracking-tight text-zinc-950">Breakdowns worth exploring</h2></div><div className="grid gap-4 md:grid-cols-2">{secondary.map((c) => card(c))}</div></section>}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200/80 bg-white px-5 py-4 text-sm shadow-sm">
+            <div><p className="font-medium text-zinc-900">Data quality</p><span className="text-xs text-zinc-500">{issues === 0 ? "No potential issues found in the analyzed workbook." : `${issues} potential data-quality issue${issues === 1 ? "" : "s"}${findings.high ? ` · ${findings.high} high priority` : ""}.`}</span></div>
             <button type="button" onClick={onOpenDetails} className="text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">Review in Details</button>
           </div>
         </>

@@ -35,7 +35,12 @@ export default function UploadZone({ userId, onUploaded }: { userId: string; onU
       .insert({ id, filename: file.name, size_bytes: file.size, storage_path: path });
     if (ins.error) {
       await supabase.storage.from(BUCKET).remove([path]); // don't leave an orphan file
-      setError("Could not register the file. Please try again.");
+      const message = ins.error.message ?? "";
+      setError(/workbook_quota_exceeded/.test(message)
+        ? "You have reached the 25-workbook limit for the last 30 days. Delete an older workbook before uploading another."
+        : /upload_rate_limited/.test(message)
+          ? "You have reached the upload limit. Please try again tomorrow."
+          : "Could not register the file. Please try again.");
       setBusy(false);
       return;
     }

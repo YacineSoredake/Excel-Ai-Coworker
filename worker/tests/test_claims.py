@@ -89,6 +89,12 @@ class TestLanguage:
         bad("Sales are high, according to Gartner.", "unknown_name")
         ok("Sales are high in September.")
 
+    def test_contractions_and_possessives_are_judged_by_the_word_itself(self):
+        ok("That's the highest total_dzd in 2026-09.")
+        ok("Electronics's share is 73%.")  # possessive of a name that is in the evidence
+        bad("Gartner's report says sales rose.", "unknown_name")  # possessive of an invented name
+        bad("O'Brien leads the table.", "unknown_name")
+
     def test_ordinary_sentence_starters_are_not_mistaken_for_names(self):
         ok("They rose steadily until 2026-09.")
         ok("There are 339 records. However, Electronics leads.")

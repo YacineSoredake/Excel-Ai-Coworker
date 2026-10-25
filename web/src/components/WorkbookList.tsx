@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ARTIFACTS, BUCKET, formatSize, type Workbook } from "@/lib/types";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 const PENDING = new Set(["uploaded", "validating", "validated", "analyzing"]);
 
@@ -34,6 +35,8 @@ async function removeFolder(bucket: string, prefix: string): Promise<void> {
 export default function WorkbookList({ refreshKey }: { refreshKey: number }) {
   const [items, setItems] = useState<Workbook[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Workbook | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -53,13 +56,20 @@ export default function WorkbookList({ refreshKey }: { refreshKey: number }) {
   }, [items, load]);
 
   async function onDelete(w: Workbook) {
-    if (!confirm(`Delete "${w.filename}"? The file and everything computed from it are permanently removed.`)) return;
+    setDeleting(true);
     const { data } = await supabase.auth.getUser();
-    if (!data.user) return;
+    if (!data.user) { setDeleting(false); return; }
     const prefix = `${data.user.id}/${w.id}`;
     await removeFolder(BUCKET, prefix);
     await removeFolder(ARTIFACTS, prefix);
-    await supabase.from("workbooks").delete().eq("id", w.id); // profile rows cascade
+    const { error } = await supabase.from("workbooks").delete().eq("id", w.id); // profile rows cascade
+    if (error) {
+      setError("Could not delete this workbook. Please try again.");
+      setDeleting(false);
+      return;
+    }
+    setDeleting(false);
+    setPendingDelete(null);
     void load();
   }
 
@@ -68,7 +78,8 @@ export default function WorkbookList({ refreshKey }: { refreshKey: number }) {
   if (items.length === 0) return <p className="text-sm text-zinc-500">No files yet. Upload one to get started.</p>;
 
   return (
-    <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white">
+    <>
+      <ul className="divide-y divide-zinc-200 rounded-2xl border border-zinc-200/80 bg-white/90 shadow-sm">
       {items.map((w) => {
         const bad = w.status === "rejected" || w.status === "failed";
         return (
@@ -90,8 +101,8 @@ export default function WorkbookList({ refreshKey }: { refreshKey: number }) {
               )}
               <button
                 type="button"
-                onClick={() => void onDelete(w)}
-                className="rounded-md px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                onClick={() => setPendingDelete(w)}
+                className="rounded-lg px-2 py-1.5 text-sm text-zinc-500 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
               >
                 Delete
               </button>
@@ -99,6 +110,17 @@ export default function WorkbookList({ refreshKey }: { refreshKey: number }) {
           </li>
         );
       })}
-    </ul>
+      </ul>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete this workbook permanently?"
+        description={pendingDelete ? `"${pendingDelete.filename}" and its analyzed data, charts, insights, and cleaned tables will be removed. This cannot be undone.` : ""}
+        confirmLabel="Delete workbook"
+        destructive
+        busy={deleting}
+        onCancel={() => { if (!deleting) setPendingDelete(null); }}
+        onConfirm={() => { if (pendingDelete) void onDelete(pendingDelete); }}
+      />
+    </>
   );
 }

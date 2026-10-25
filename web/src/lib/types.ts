@@ -158,3 +158,12 @@ export interface QuestionRow {
   id: string; workbook_id: string; text: string; status: "queued" | "answering" | "answered" | "failed";
   answer: Answer | null; created_at: string;
 }
+
+/* ---------- Phase 6: guided analysis ---------- */
+
+export interface GuideAction { label: string; kind: "ask" | "details" | "ask_tab"; text: string | null; plan: PlanLike | null }
+export interface GuideStep {
+  id: string; kind: string; title: string; narrative: string; notes?: string[]; chart_keys: string[]; fact_keys: string[];
+  actions: GuideAction[]; value: number;
+}
+export interface GuideRow { version: number; table: string; table_index: number; steps: GuideStep[] }

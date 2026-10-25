@@ -8,8 +8,8 @@ export default function AboutCard({ context, onAsk }: { context: ContextRow; onA
   const c = context;
   const unsure = c.domain.confidence < 0.6;
   return (
-    <section aria-labelledby="about" className="rounded-lg border border-zinc-200 bg-white p-4">
-      <h2 id="about" className="text-sm font-semibold">About this workbook</h2>
+    <section aria-labelledby="about" className="rounded-2xl border border-accent/15 bg-gradient-to-br from-white to-[#f2f3ff] p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">The quick read</p><h2 id="about" className="mt-1 text-lg font-semibold tracking-tight text-zinc-950">About this workbook</h2></div><span className="rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-medium text-accent">AI-assisted profile</span></div>
       <p className="mt-1.5 text-sm">
         {unsure ? "Possibly " : ""}<span className="font-medium">{c.purpose.toLowerCase()}</span>
         {c.domain.evidence.length > 0 && <span className="text-zinc-500"> (based on columns such as {c.domain.evidence.slice(0, 4).join(", ")})</span>}

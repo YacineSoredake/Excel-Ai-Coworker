@@ -4,6 +4,8 @@
 
 html { color-scheme: light; }
 body { @apply bg-zinc-50 text-zinc-900 antialiased; }
+::selection { background: #dfe2ff; color: #171735; }
+button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }

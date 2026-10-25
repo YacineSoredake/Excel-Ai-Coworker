@@ -10,15 +10,15 @@ export default function KpiCard({ chart, data, filtered }: { chart: ChartRow; da
   const d = data.delta as { pct: number | null; previous: string } | null | undefined;
   const sub = data.sub ?? (data.median != null && chart.data.label?.startsWith("Average") ? `median ${fmtNum(data.median, data.currency)}` : null);
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4" title={chart.title}>
-      <p className="text-xs text-zinc-500">{data.label}</p>
-      <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{value}</p>
+    <div className="group relative rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md" title={chart.title}>
+      <p className="text-xs font-medium uppercase tracking-[0.12em] text-zinc-500">{data.label}</p><span className="absolute right-5 top-5 h-2 w-2 rounded-full bg-accent/70" aria-hidden />
+      <p className="mt-3 text-3xl font-semibold tracking-tight tabular-nums text-zinc-950">{value}</p>
       {isPct && data.value != null && (
-        <div className="mt-2 h-1.5 overflow-hidden rounded bg-zinc-100" aria-hidden>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100" aria-hidden>
           <div className="h-full rounded bg-accent" style={{ width: `${Math.min(100, Math.round(data.value * 100))}%` }} />
         </div>
       )}
-      <p className="mt-1.5 min-h-[1rem] text-xs text-zinc-500">
+      <p className="mt-2 min-h-[1rem] text-xs text-zinc-500">
         {d && d.pct != null ? (
           <>
             <span aria-hidden>{d.pct >= 0 ? "▲" : "▼"} </span>

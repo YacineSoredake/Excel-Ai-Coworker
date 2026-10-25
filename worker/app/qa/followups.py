@@ -23,7 +23,8 @@ def initial_suggestions(schema: dict) -> list:
     m, d = _main_measure(t), _best_dim(t)
     out = []
     if m:
-        out.append({"text": f"What is the {'total' if m['subtype'] in SUMMABLE else 'average'} {m['name']}?",
+        label = (m["name"] if m["name"].lower().startswith("total") else f"total {m['name']}") if m["subtype"] in SUMMABLE else f"average {m['name']}"
+        out.append({"text": f"What is the {label}?",
                     "plan": {"op": "agg", "table": t["name"], "measure": m["name"]}})
     if m and d:
         out.append({"text": f"Which {d['name']} has the highest {m['name']}?",

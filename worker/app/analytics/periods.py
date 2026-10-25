@@ -53,3 +53,12 @@ def build_series(df: pd.DataFrame, time: str, grain: str, value: str | None, agg
         items.append({"period": str(p), "value": None if v is None else float(v), "rows": n,
                       "complete": _is_complete(p, first, last, min_d, max_d), "empty": n == 0})
     return items
+
+
+def period_range(key: str, grain: str) -> tuple[str, str] | None:
+    """First and last day (YYYY-MM-DD) of a period key such as 2026-05 or 2026-06-29/2026-07-05."""
+    try:
+        p = pd.Period(key, freq=grain)
+    except Exception:
+        return None
+    return p.start_time.date().isoformat(), p.end_time.date().isoformat()

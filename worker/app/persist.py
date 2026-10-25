@@ -142,3 +142,7 @@ def save_context_and_insights(client: Client, user_id: str, workbook_id: str, ou
         "statement": i.statement, "interpretation": i.interpretation, "next_check": i.next_check, "next_plan": _native(i.next_plan),
         "fact_keys": _native(i.fact_keys), "finding_codes": _native(i.finding_codes), "caveats": _native(i.caveats), "source": i.source}
         for i in insights])
+
+
+def save_guide(client: Client, workbook_id: str, guide: dict) -> None:
+    client.table("workbook_profiles").update({"guide": _native(guide)}).eq("workbook_id", workbook_id).execute()

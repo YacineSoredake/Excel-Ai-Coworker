@@ -21,7 +21,7 @@ export default function FilterBar({ filters, onChange, timeCol, bounds, dims, ro
   };
 
   return (
-    <div className="flex flex-wrap items-end gap-x-4 gap-y-3 rounded-lg border border-zinc-200 bg-white px-4 py-3" role="group" aria-label="Filters">
+    <div className="flex flex-wrap items-end gap-x-4 gap-y-3 rounded-2xl border border-zinc-200/80 bg-white px-4 py-3 shadow-sm" role="group" aria-label="Filters">
       {timeCol && (
         <>
           <label className="text-xs text-zinc-500">From

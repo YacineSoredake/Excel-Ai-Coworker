@@ -9,6 +9,7 @@ from supabase import Client
 
 from .config import Settings
 from .persist import _native
+from .qa.highlights import highlights_answer, is_attention
 from .qa.run import QAContext, answer_question
 from .qa.schema import make_schema
 
@@ -62,6 +63,11 @@ def handle_question(client: Client, settings: Settings, q: dict) -> None:
         own = client.table("workbooks").select("id").eq("id", q["wb_id"]).eq("user_id", q["owner_id"]).execute().data
         if not own:
             raise PermissionError("not_owner")
+        if q.get("q_plan") is None and is_attention(q["q_text"]):
+            rows = client.table("insights").select("category, priority, statement, next_check, next_plan").eq("workbook_id", q["wb_id"]).execute().data or []
+            answer = _native(highlights_answer(q["q_text"], rows))
+            client.table("questions").update({"status": "answered", "answer": answer, "answered_at": _now(), "error": None}).eq("id", qid).execute()
+            return
         schema, frames = load_workbook(client, q["wb_id"])
         ai_on = settings.llm is not None and _ai_enabled(client, q["owner_id"])
         ctx = QAContext(schema, frames, settings.llm if ai_on else None, ai_on, settings.ai_phrase_answers)

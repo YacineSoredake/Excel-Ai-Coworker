@@ -50,7 +50,7 @@ function RowsTable({ data }: { data: any }) {
   );
 }
 
-function AnswerView({ q, onAsk }: { q: QuestionRow; onAsk: (t: string, p?: PlanLike) => void }) {
+export function AnswerView({ q, onAsk }: { q: QuestionRow; onAsk: (t: string, p?: PlanLike) => void }) {
   const a = q.answer;
   if (q.status === "queued" || q.status === "answering")
     return <p role="status" className="mt-2 text-sm text-zinc-500">Working on it…</p>;
@@ -64,6 +64,19 @@ function AnswerView({ q, onAsk }: { q: QuestionRow; onAsk: (t: string, p?: PlanL
           : <div className="mt-3"><ChartCard chart={row} data={row.data} filtered={false} onSelect={noop} height={220} /></div>
       )}
       {a.status === "ok" && a.chart?.kind === "table" && <RowsTable data={a.chart.data} />}
+      {a.status === "ok" && a.result?.kind === "highlights" && (
+        <ol className="mt-3 space-y-3">
+          {(a.result.data.items as { statement: string; next_check: string; next_plan: PlanLike | null }[]).map((it, i) => (
+            <li key={i} className="text-sm">
+              <p className="font-medium">{it.statement}</p>
+              {it.next_check && it.next_plan && (
+                <button type="button" onClick={() => onAsk(it.next_check, it.next_plan ?? undefined)}
+                  className="mt-0.5 rounded text-xs text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{it.next_check}</button>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
       {a.status === "clarify" && a.options && (
         <Chips items={a.options.map((o) => ({ text: `${baseQuestion(q.text)} (use ${o})` }))} onAsk={onAsk} />
       )}
@@ -73,7 +86,7 @@ function AnswerView({ q, onAsk }: { q: QuestionRow; onAsk: (t: string, p?: PlanL
           <Chips items={a.suggestions ?? []} onAsk={onAsk} />
         </>
       )}
-      {a.status === "ok" && (
+      {a.status === "ok" && a.plan_summary && (
         <details className="mt-3 text-xs text-zinc-600">
           <summary className="cursor-pointer text-zinc-500 hover:text-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">How was this computed?</summary>
           <div className="mt-1.5 space-y-1">
@@ -88,7 +101,7 @@ function AnswerView({ q, onAsk }: { q: QuestionRow; onAsk: (t: string, p?: PlanL
           </div>
         </details>
       )}
-      {a.status === "ok" && <Chips items={a.followups} onAsk={onAsk} />}
+      {a.status === "ok" && a.result?.kind !== "highlights" && <Chips items={a.followups} onAsk={onAsk} />}
     </div>
   );
 }
